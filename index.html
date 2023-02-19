@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <!--Load the AJAX API-->
+    <script
+      type="text/javascript"
+      src="https://www.gstatic.com/charts/loader.js"
+    ></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
+    <script type="text/javascript" defer>
+      let city = "Montreal";
+      let apikey = "4b8c6657a64b55dce34f308a462a04d6";
+      let lastRequestResult = [];
+      let temperatureByDay = {};
+      let arrayTempMinMaxByDay = [];
+
+      getMeteo();
+
+      $(document).ready(function () {
+        $("#btn").click(function () {
+          city = $("#ville").val();
+          getMeteo();
+          console.log("click");
+        });
+      });
+
+      // Callback that creates and populates a data table,
+      // instantiates the pie chart, passes in the data and
+      // draws it.
+      function drawChart() {
+        // Create the data table.
+        var data = new google.visualization.DataTable();
+        data.addColumn("date", "Day");
+        data.addColumn("number", "Min");
+        data.addColumn("number", "Max");
+        data.addRows(arrayTempMinMaxByDay);
+        arrayTempMinMaxByDay = [];
+
+        // Set chart options
+        var options = {
+          title: city + " - Previsison des 5 prochain jours ",
+          legend: "top",
+
+          width: 800,
+          height: 600,
+          format: "$#",
+        };
+
+        var formatter = new google.visualization.NumberFormat({
+          suffix: "\xB0",
+        });
+        formatter.format(data, 1);
+        formatter.format(data, 2);
+
+        // Instantiate and draw our chart, passing in some options.
+        var chart = new google.visualization.LineChart(
+          document.getElementById("chart_div")
+        );
+        chart.draw(data, options);
+      }
+
+      function getMeteo() {
+        let url =
+          "http://api.openweathermap.org/data/2.5/forecast?q=" +
+          city +
+          "&units=metric&appid=4b8c6657a64b55dce34f308a462a04d6";
+        $.ajax({
+          url: url,
+          success: (result) => {
+            city = result.city.name;
+            console.log(city);
+            temperatureByDay = FilterByDay(result);
+            FindTempMinForADay(temperatureByDay);
+            // Load the Visualization API and the corechart package.
+            google.charts.load("current", { packages: ["corechart"] });
+
+            // Set a callback to run when the Google Visualization API is loaded.
+            google.charts.setOnLoadCallback(drawChart);
+          },
+        });
+      }
+
+      function FilterByDay(result) {
+        let lastRequestResult = result;
+        let date = result.list[0].dt_txt.split(" ")[0];
+        let index = 0;
+        let arrayTemp = [];
+        let objectTemperatureByDay = {};
+        lastRequestResult.list.forEach((ctn) => {
+          cursor = ctn.dt_txt.split(" ")[0];
+
+          if (cursor === date) {
+            arrayTemp.push(ctn.main.temp);
+          } else {
+            date = ctn.dt_txt.replace(" ","T");
+            objectTemperatureByDay[date] = arrayTemp;
+            arrayTemp = [];
+            date = cursor;
+          }
+        });
+        console.log(objectTemperatureByDay);
+        return objectTemperatureByDay;
+      }
+
+      function FindTempMinForADay(obj) {
+        Object.entries(obj).forEach(([key, value]) => {
+            console.log(key)
+          arrayTempMinMaxByDay.push([
+            new Date(key),
+            Math.min(...value),
+            Math.max(...value),
+          ]);
+        });
+        console.log(arrayTempMinMaxByDay);
+        return arrayTempMinMaxByDay;
+      }
+    </script>
+  </head>
+
+  <body>
+    <!--Div that will hold the pie chart-->
+    <div>
+      Ville
+      <input type="text" name="ville" id="ville" />
+      <button id="btn">Prévision</button>
+    </div>
+    <div id="chart_div"></div>
+  </body>
+</html>
